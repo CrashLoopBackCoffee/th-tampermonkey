@@ -1,0 +1,40 @@
+name: Self-approve via slash command
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  approve:
+    if: |
+      github.event.issue.pull_request != null &&
+      github.event.comment.body == '/approve' &&
+      github.event.comment.user.login == 'tobiashenkel'
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: pr.data.head.sha,
+              state: 'success',
+              context: 'owner-approval',
+              description: 'Approved by owner',
+            });
+            await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              merge_method: 'squash',
+            });
