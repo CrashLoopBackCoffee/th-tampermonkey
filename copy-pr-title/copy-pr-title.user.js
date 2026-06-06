@@ -3,6 +3,8 @@
 // @description  Adds a button to GitHub PR pages to copy the PR title and URL to clipboard
 // @version      1.0.0
 // @match        https://github.com/*/pull/*
+// @updateURL    https://raw.githubusercontent.com/CrashLoopBackCoffee/th-tampermonkey/main/copy-pr-title/copy-pr-title.user.js
+// @downloadURL  https://raw.githubusercontent.com/CrashLoopBackCoffee/th-tampermonkey/main/copy-pr-title/copy-pr-title.user.js
 // @grant        GM_setClipboard
 // ==/UserScript==
 
