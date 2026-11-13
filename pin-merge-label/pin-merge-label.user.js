@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub - Pin Merge Label
 // @namespace    local.github.label-sorting
-// @version      1.0.1
+// @version      1.0.2
 // @description  Move the merge label to the top of GitHub label selectors
 // @match        https://github.com/*
 // @match        https://cc-github.bmwgroup.net/*
@@ -31,10 +31,10 @@
     ].join(',');
 
     // Elements that carry the bare label name (without description).
-    const NAME_SEL = '[data-label-name], .js-label-name, .name, [class*="LabelName"], [data-name]';
+    const NAME_SEL = '[data-label-name], .js-label-name, .select-menu-item-heading, .name, [class*="LabelName"], [data-name]';
 
     function isLabelScope(scope) {
-        if (scope.querySelector('input[name*="label" i], form[action*="/labels"], .IssueLabel, .issue-label')) return true;
+        if (scope.querySelector('input[name*="label" i], form[action*="/labels"], a[href$="/labels"], a[href*="/labels?"], .IssueLabel, .issue-label')) return true;
         const aria = (scope.getAttribute('aria-label') || '') + ' ' + (scope.getAttribute('aria-labelledby') || '');
         if (/label/i.test(aria)) return true;
         const heading = scope.querySelector('h1, h2, h3, h4, header, .select-menu-title');
@@ -74,11 +74,24 @@
         }
     }
 
+    const DEBUG = (() => { try { return localStorage.getItem('pinMergeLabelDebug') === '1'; } catch (e) { return false; } })();
+
+    // Walk up from an item to the nearest ancestor that looks like the label
+    // selector (independent of tag names, which differ between GitHub versions).
+    function findScope(item) {
+        let el = item.parentElement;
+        for (let i = 0; el && el !== document.body && i < 12; i++, el = el.parentElement) {
+            if (isLabelScope(el)) return el;
+        }
+        return null;
+    }
+
     function run() {
         if (!PATH_RE.test(location.pathname)) return;
         const seen = new Set();
         for (const item of document.querySelectorAll(ITEM_SEL)) {
-            const scope = item.closest(SCOPE_SEL);
+            const scope = findScope(item);
+            if (DEBUG && !seen.has(scope)) console.debug('[pin-merge-label] item', item, 'scope', scope);
             if (scope && !seen.has(scope)) {
                 seen.add(scope);
                 pinIn(scope);
