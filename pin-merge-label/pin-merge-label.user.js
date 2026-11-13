@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub - Pin Merge Label
 // @namespace    local.github.label-sorting
-// @version      1.0.0
+// @version      1.0.1
 // @description  Move the merge label to the top of GitHub label selectors
 // @match        https://github.com/*
 // @match        https://cc-github.bmwgroup.net/*
@@ -42,13 +42,24 @@
     }
 
     function itemName(item) {
+        // Best: accessible name (GitHub's select panel uses aria-labelledby for the
+        // label name and aria-describedby for the description).
+        const ids = (item.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean);
+        if (ids.length) {
+            const text = ids.map(id => (document.getElementById(id) || {}).textContent || '').join(' ').trim();
+            if (text) return text;
+        }
         const nameEl = item.querySelector(NAME_SEL);
         if (nameEl) return nameEl.textContent.trim();
         const data = item.getAttribute('data-label-name') || item.getAttribute('data-name');
         if (data) return data.trim();
-        // Fallback: first non-empty line of visible text.
-        const line = (item.textContent || '').split('\n').map(s => s.trim()).find(Boolean);
-        return line || '';
+        // Fallback: first non-empty text node in document order (skips the description).
+        const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            const t = n.textContent.trim();
+            if (t) return t;
+        }
+        return '';
     }
 
     function pinIn(scope) {
