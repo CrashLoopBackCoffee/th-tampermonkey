@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub - Pin Merge Label
 // @namespace    local.github.label-sorting
-// @version      1.0.2
+// @version      1.0.3
 // @description  Move the merge label to the top of GitHub label selectors
 // @match        https://github.com/*
 // @match        https://cc-github.bmwgroup.net/*
@@ -31,7 +31,7 @@
     ].join(',');
 
     // Elements that carry the bare label name (without description).
-    const NAME_SEL = '[data-label-name], .js-label-name, .select-menu-item-heading, .name, [class*="LabelName"], [data-name]';
+    const NAME_SEL = '[data-label-name], .js-label-name, .select-menu-item-heading, .name, [class*="LabelName"]';
 
     function isLabelScope(scope) {
         if (scope.querySelector('input[name*="label" i], form[action*="/labels"], a[href$="/labels"], a[href*="/labels?"], .IssueLabel, .issue-label')) return true;
@@ -49,10 +49,11 @@
             const text = ids.map(id => (document.getElementById(id) || {}).textContent || '').join(' ').trim();
             if (text) return text;
         }
+        // Legacy GHE: name lives in an attribute of a hidden checkbox (no text content).
+        const attrEl = item.matches('[data-label-name]') ? item : item.querySelector('[data-label-name]');
+        if (attrEl) return attrEl.getAttribute('data-label-name').trim();
         const nameEl = item.querySelector(NAME_SEL);
-        if (nameEl) return nameEl.textContent.trim();
-        const data = item.getAttribute('data-label-name') || item.getAttribute('data-name');
-        if (data) return data.trim();
+        if (nameEl && nameEl.textContent.trim()) return nameEl.textContent.trim();
         // Fallback: first non-empty text node in document order (skips the description).
         const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
         for (let n = walker.nextNode(); n; n = walker.nextNode()) {
