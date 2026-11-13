@@ -32,9 +32,3 @@ jobs:
               context: 'owner-approval',
               description: 'Approved by owner',
             });
-            await github.rest.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-              merge_method: 'squash',
-            });
