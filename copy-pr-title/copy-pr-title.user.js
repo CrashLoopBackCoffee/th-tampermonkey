@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         Copy PR Title + URL
 // @description  Adds a button to GitHub PR pages to copy the PR title and URL to clipboard
-// @version      1.1.0
+// @version      1.2.0
 // @match        https://github.com/*/pull/*
+// @match        https://cc-github.bmwgroup.net/*/pull/*
 // @updateURL    https://raw.githubusercontent.com/CrashLoopBackCoffee/th-tampermonkey/main/copy-pr-title/copy-pr-title.user.js
 // @downloadURL  https://raw.githubusercontent.com/CrashLoopBackCoffee/th-tampermonkey/main/copy-pr-title/copy-pr-title.user.js
 // @grant        GM_setClipboard
@@ -11,8 +12,11 @@
 (function () {
     function addButton() {
         if (document.getElementById('copy-pr-btn')) return;
-        const titleEl = document.querySelector('h1:not(.sr-only):not(.Overlay-title) .markdown-title');
+        // New GitHub UI (github.com) vs. classic UI (GHE)
+        const newTitleEl = document.querySelector('h1:not(.sr-only):not(.Overlay-title) .markdown-title');
+        const titleEl = newTitleEl || document.querySelector('.js-issue-title');
         if (!titleEl) return;
+        const isNewUi = !!newTitleEl;
 
         const btn = document.createElement('button');
         btn.id = 'copy-pr-btn';
@@ -21,16 +25,19 @@
           <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/>
           <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/>
         </svg>`;
-        btn.style.cssText = 'margin-left:6px;cursor:pointer;background:none;border:none;padding:0;opacity:0.6;vertical-align:middle;color:inherit;line-height:1;position:relative;top:-6px;';
+        btn.style.cssText = 'margin-left:6px;cursor:pointer;background:none;border:none;padding:0;opacity:0.6;vertical-align:middle;color:inherit;line-height:1;' + (isNewUi ? 'position:relative;top:-6px;' : '');
 
         btn.addEventListener('click', () => {
-            const text = titleEl.childNodes[0]?.textContent?.trim() ?? titleEl.textContent.trim();
+            const text = isNewUi
+                ? (titleEl.childNodes[0]?.textContent?.trim() ?? titleEl.textContent.trim())
+                : titleEl.textContent.trim();
             GM_setClipboard(text + ' ' + location.href);
             btn.style.opacity = '1';
             setTimeout(() => { btn.style.opacity = '0.6'; }, 1500);
         });
 
-        titleEl.appendChild(btn);
+        if (isNewUi) titleEl.appendChild(btn);
+        else titleEl.after(btn);
     }
 
     const observer = new MutationObserver(addButton);
