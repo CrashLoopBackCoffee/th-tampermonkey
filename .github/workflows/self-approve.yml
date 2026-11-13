@@ -14,6 +14,7 @@ jobs:
     permissions:
       statuses: write
       pull-requests: write
+      issues: write
       contents: write
     steps:
       - uses: actions/github-script@v9
@@ -31,4 +32,10 @@ jobs:
               state: 'success',
               context: 'owner-approval',
               description: 'Approved by owner',
+            });
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['merge'],
             });
