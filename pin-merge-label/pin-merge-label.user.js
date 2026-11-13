@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub - Pin Merge Label
 // @namespace    local.github.label-sorting
-// @version      1.0.0
+// @version      1.0.2
 // @description  Move the merge label to the top of GitHub label selectors
 // @match        https://github.com/*
 // @match        https://cc-github.bmwgroup.net/*
@@ -31,10 +31,10 @@
     ].join(',');
 
     // Elements that carry the bare label name (without description).
-    const NAME_SEL = '[data-label-name], .js-label-name, .name, [class*="LabelName"], [data-name]';
+    const NAME_SEL = '[data-label-name], .js-label-name, .select-menu-item-heading, .name, [class*="LabelName"], [data-name]';
 
     function isLabelScope(scope) {
-        if (scope.querySelector('input[name*="label" i], form[action*="/labels"], .IssueLabel, .issue-label')) return true;
+        if (scope.querySelector('input[name*="label" i], form[action*="/labels"], a[href$="/labels"], a[href*="/labels?"], .IssueLabel, .issue-label')) return true;
         const aria = (scope.getAttribute('aria-label') || '') + ' ' + (scope.getAttribute('aria-labelledby') || '');
         if (/label/i.test(aria)) return true;
         const heading = scope.querySelector('h1, h2, h3, h4, header, .select-menu-title');
@@ -42,13 +42,24 @@
     }
 
     function itemName(item) {
+        // Best: accessible name (GitHub's select panel uses aria-labelledby for the
+        // label name and aria-describedby for the description).
+        const ids = (item.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean);
+        if (ids.length) {
+            const text = ids.map(id => (document.getElementById(id) || {}).textContent || '').join(' ').trim();
+            if (text) return text;
+        }
         const nameEl = item.querySelector(NAME_SEL);
         if (nameEl) return nameEl.textContent.trim();
         const data = item.getAttribute('data-label-name') || item.getAttribute('data-name');
         if (data) return data.trim();
-        // Fallback: first non-empty line of visible text.
-        const line = (item.textContent || '').split('\n').map(s => s.trim()).find(Boolean);
-        return line || '';
+        // Fallback: first non-empty text node in document order (skips the description).
+        const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            const t = n.textContent.trim();
+            if (t) return t;
+        }
+        return '';
     }
 
     function pinIn(scope) {
@@ -63,11 +74,24 @@
         }
     }
 
+    const DEBUG = (() => { try { return localStorage.getItem('pinMergeLabelDebug') === '1'; } catch (e) { return false; } })();
+
+    // Walk up from an item to the nearest ancestor that looks like the label
+    // selector (independent of tag names, which differ between GitHub versions).
+    function findScope(item) {
+        let el = item.parentElement;
+        for (let i = 0; el && el !== document.body && i < 12; i++, el = el.parentElement) {
+            if (isLabelScope(el)) return el;
+        }
+        return null;
+    }
+
     function run() {
         if (!PATH_RE.test(location.pathname)) return;
         const seen = new Set();
         for (const item of document.querySelectorAll(ITEM_SEL)) {
-            const scope = item.closest(SCOPE_SEL);
+            const scope = findScope(item);
+            if (DEBUG && !seen.has(scope)) console.debug('[pin-merge-label] item', item, 'scope', scope);
             if (scope && !seen.has(scope)) {
                 seen.add(scope);
                 pinIn(scope);
